@@ -9,11 +9,11 @@ services:
         volumes:
             - .:/app
         environment:
-            - DB_HOSTNAME=postgres://admin:123@localhost:5432/rinha
+            - DB_HOSTNAME=postgres://admin:123@db:5432/rinha
         ports:
             - "8001:8000"
         depends_on:
-            - db_rinha
+            - db
         deploy:
             resources:
                 limits:
@@ -42,9 +42,9 @@ services:
                     memory: "30MB"
 
 
-    db_rinha:
+    db:
         image: postgres:latest
-        hostname: db_rinha
+        hostname: db
         environment: 
             POSTGRES_USER: admin
             POSTGRES_PASSWORD: 123

@@ -5,7 +5,7 @@ import { z } from 'zod';
 const app = polka();
 
 const pool = new Pool({
-    connectionString: process.env.DB_HOSTNAME ?? 'postgres://admin:123@localhost:5432/rinha',
+    connectionString: process.env.DB_HOSTNAME ?? 'postgres://admin:123@db:5432/rinha',
   });
 
 const transactionSchema = z.object({
@@ -27,6 +27,16 @@ const createTransaction = (id: number, novoSaldo: number, valor: number, tipo: s
   )
   UPDATE clientes SET saldo = ${novoSaldo} WHERE id = ${id};
 `;
+
+const selectTransactions = (id: number) => `SELECT *
+FROM
+    transacoes t
+WHERE
+    t.id_cliente = ${id}
+ORDER BY
+    t.realizada_em DESC
+LIMIT 10`;
+
   
   const getClient = async (id: number) => {
     const client = await pool.connect();
@@ -68,42 +78,27 @@ const createTransaction = (id: number, novoSaldo: number, valor: number, tipo: s
       if (!getCustomer) {
         throw new Error('Customer not found');
       }
-      const transactionsQuery = `
-      SELECT
-      t.id_cliente,
-      t.valor,
-      t.tipo,
-      t.descricao,
-      t.realizada_em
-        FROM
-            transacoes t
-        WHERE
-            t.id_cliente = ${customerId}
-        ORDER BY
-            t.realizada_em DESC
-        LIMIT 10
-      `;
 
-      const { rows: transactionsRows } = await client.query(transactionsQuery, [customerId]);
-      const ultimasTransacoes = transactionsRows.map((tx) => ({
+      const { rows: transactionsRows } = await client.query(selectTransactions(customerId));
+
+       const ultimasTransacoes = transactionsRows.map((tx) => ({
         valor: tx.valor,
         tipo: tx.tipo,
         descricao: tx.descricao,
         realizada_em: tx.realizada_em.toISOString(),
       }));
-  
+    
       const extrato = {
         saldo: {
           total: getCustomer.saldo,
           data_extrato: new Date().toISOString(),
           limite: getCustomer.limite,
         },
-        ultimas_transacoes: ultimasTransacoes ?? 0,
+        ultimas_transacoes: ultimasTransacoes,
       };
   
       return extrato;
     } catch (error) {
-      console.error('Error fetching account statement:', error);
       throw new Error('Customer not found');
     } finally {
       client.release();
