@@ -18,14 +18,14 @@ const idSchema = z.object({
     id: z.string().regex(/^\d+$/, 'ID must be an integer').transform(Number),
   });
 
-const selectCustomers = (id: number) => `SELECT nome,limite,saldo FROM customers WHERE id = ${id}`;
+const selectCustomers = (id: number) => `SELECT nome,limite,saldo FROM clientes WHERE id = ${id}`;
 
 const createTransaction = (id: number, novoSaldo: number, valor: number, tipo: string, descricao: string) => `
   WITH insere_transacao AS (
-    INSERT INTO transactions (id_cliente, valor, tipo, descricao) VALUES (${id}, ${valor}, '${tipo}', '${descricao}')
+    INSERT INTO transacoes (id_cliente, valor, tipo, descricao) VALUES (${id}, ${valor}, '${tipo}', '${descricao}')
     RETURNING id
   )
-  UPDATE customers SET saldo = ${novoSaldo} WHERE id = ${id};
+  UPDATE clientes SET saldo = ${novoSaldo} WHERE id = ${id};
 `;
   
   const getClient = async (id: number) => {
