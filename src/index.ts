@@ -18,7 +18,7 @@ const idSchema = z.object({
     id: z.string().regex(/^\d+$/, 'ID must be an integer').transform(Number),
   });
 
-const selectCustomers = (id: number) => `SELECT nome,limite,saldo FROM clientes WHERE id = ${id}`;
+const selectCustomers = (id: number) => `SELECT * FROM clientes WHERE id = ${id}`;
 
 const createTransaction = (id: number, novoSaldo: number, valor: number, tipo: string, descricao: string) => `
   WITH insere_transacao AS (
@@ -43,7 +43,7 @@ const createTransaction = (id: number, novoSaldo: number, valor: number, tipo: s
     try {
       await client.query('BEGIN');
       const cliente = await getClient(id);
-      if (!cliente) return { code: 422, data: null }
+      if (!cliente) throw new Error('Customer not found');
   
       const transactionAmount = tipo === 'c' ? valor : -valor;
       const novoSaldo = cliente.balance + transactionAmount;
@@ -55,23 +55,19 @@ const createTransaction = (id: number, novoSaldo: number, valor: number, tipo: s
       return { saldo: novoSaldo, limite: cliente.limit };
     } catch (e) {
       await client.query('ROLLBACK');
-      throw e;
+      throw new Error('Customer not found');
     } finally {
       client.release();
     }
   };
 
   const getExtrato = async (customerId : number) => {
-    console.log(customerId)
     const client = await pool.connect();
-    console.log(client)
     try {
       const getCustomer = await getClient(customerId);
-      console.log(getCustomer);
-      if (getCustomer.length === 0) {
-        throw { status: 404};
+      if (!getCustomer) {
+        throw new Error('Customer not found');
       }
-      const customer = getCustomer[0];
       const transactionsQuery = `
       SELECT
       t.id_cliente,
@@ -82,13 +78,13 @@ const createTransaction = (id: number, novoSaldo: number, valor: number, tipo: s
         FROM
             transacoes t
         WHERE
-            t.id_cliente = ${customer.id}
+            t.id_cliente = ${customerId}
         ORDER BY
             t.realizada_em DESC
         LIMIT 10
       `;
+
       const { rows: transactionsRows } = await client.query(transactionsQuery, [customerId]);
-  
       const ultimasTransacoes = transactionsRows.map((tx) => ({
         valor: tx.valor,
         tipo: tx.tipo,
@@ -98,17 +94,17 @@ const createTransaction = (id: number, novoSaldo: number, valor: number, tipo: s
   
       const extrato = {
         saldo: {
-          total: customer.saldo,
+          total: getCustomer.saldo,
           data_extrato: new Date().toISOString(),
-          limite: customer.limite,
+          limite: getCustomer.limite,
         },
-        ultimas_transacoes: ultimasTransacoes,
+        ultimas_transacoes: ultimasTransacoes ?? 0,
       };
   
       return extrato;
     } catch (error) {
       console.error('Error fetching account statement:', error);
-      throw error;
+      throw new Error('Customer not found');
     } finally {
       client.release();
     }
@@ -118,29 +114,24 @@ const createTransaction = (id: number, novoSaldo: number, valor: number, tipo: s
     try {
       const validatedId = idSchema.parse({ id: req.params.id });
       const validateParams = transactionSchema.parse(req.body);
-  
       const result = await performTransaction(validatedId.id, validateParams.valor, validateParams.tipo, validateParams.descricao);
       res.end(JSON.stringify(result));
     } catch (e) {
-      throw e;
+      res.statusCode = 404;
+      res.end(`Not Found: ${e}`);
     }
   });
   
   app.get('/clientes/:id/extrato', async (req, res) => {
     try {
       const validatedId = idSchema.parse({ id: req.params.id });
-      console.log(validatedId.id)
       const extrato = await getExtrato(validatedId.id);
       res.end(JSON.stringify(extrato));
     } catch (e) {
-      throw e;
+      res.statusCode = 404;
+      res.end(`Not Found: ${e}`);
     }
   });
-
-app.get('/', (req, res) => {
-    res.end('Hello world!');
-});
-
 
 app.listen(8000, () => {
     console.log(`> Polka Running on 8000`);

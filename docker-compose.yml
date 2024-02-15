@@ -50,7 +50,7 @@ services:
             POSTGRES_PASSWORD: 123
             POSTGRES_DB: rinha
         ports:
-            - "5434:5432"
+            - "5432:5432"
         command: postgres -c config_file=/docker-entrypoint-initdb.d/postgresql.conf
         volumes:
             - ./init.sql:/docker-entrypoint-initdb.d/init.sql
