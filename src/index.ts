@@ -48,7 +48,7 @@ LIMIT 10`;
     }
   };
   
-  const performTransaction = async (id: number, valor: number, tipo: string, descricao: string) => {
+  const performTransaction = async (res: any, id: number, valor: number, tipo: string, descricao: string) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -58,7 +58,10 @@ LIMIT 10`;
       const transactionAmount = tipo === 'c' ? valor : -valor;
       const novoSaldo = cliente.balance + transactionAmount;
   
-      if (novoSaldo < -cliente.limit) return { code: 422, data: null }
+      if (novoSaldo < -cliente.limit) {
+        res.statusCode = 404;
+        res.end();
+      }
   
       await client.query(createTransaction(id, novoSaldo, valor, tipo, descricao));
       await client.query('COMMIT');
@@ -109,7 +112,7 @@ LIMIT 10`;
     try {
       const validatedId = idSchema.parse({ id: req.params.id });
       const validateParams = transactionSchema.parse(req.body);
-      const result = await performTransaction(validatedId.id, validateParams.valor, validateParams.tipo, validateParams.descricao);
+      const result = await performTransaction(res, validatedId.id, validateParams.valor, validateParams.tipo, validateParams.descricao);
       res.end(JSON.stringify(result));
     } catch (e) {
       res.statusCode = 404;
