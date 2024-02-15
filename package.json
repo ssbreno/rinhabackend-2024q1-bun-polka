@@ -1,0 +1,20 @@
+{
+  "name": "rinha",
+  "module": "src/index.ts",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@types/pg": "^8.11.0",
+    "@types/polka": "^0.5.7",
+    "pg": "^8.11.3",
+    "polka": "^0.5.2",
+    "zod": "^3.22.4"
+  }
+}
